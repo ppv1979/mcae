@@ -1,8 +1,20 @@
 <?php
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Adds this plugin to the admin menu.
- *
  * @package    auth
  * @subpackage mcae
  * @copyright  2011 Andrew "Kama" (kamasutra12@yandex.ru)
@@ -14,6 +26,7 @@ defined('MOODLE_INTERNAL') || die;
 global $USER;
 
 require_once($CFG->dirroot.'/user/profile/lib.php');
+require_once($CFG->dirroot.'/auth/mcae/lib.php');
 
 if ($hassiteconfig) { // needs this condition or there is error on login page
     $ADMIN->add('accounts', new admin_externalpage('cohorttoolmcae',
@@ -29,34 +42,35 @@ if ($hassiteconfig) { // needs this condition or there is error on login page
 if ($ADMIN->fulltree) {
     $settings->add(new admin_setting_configtextarea('auth_mcae/mainrule_fld', get_string('auth_mainrule_fld', 'auth_mcae'), '', ''));
 
-// Profile field helper
+    // Profile field helper
     $fldlist = array();
-    $usr_helper = $USER;
+    $usr_helper = $DB->get_record('user', array('id' => 2));
 
     profile_load_data($usr_helper);
-    foreach ($usr_helper as $key => $val){
-        $fld = preg_replace('/profile_field_/', 'profile_field_raw_', $key);
-        if (is_array($val)) {
-            if (isset($val['text'])) {
-                $fldlist[] = "<span title=\"%$fld\">%$fld</span>";
-            };
-        } else {
-            $fldlist[] = "<span title=\"%$fld\">%$fld</span>";
-        };
-    }; 
-
-    // Custom profile field values
-    foreach ($usr_helper->profile as $key => $val) {
-        $fldlist[] = "<span title=\"%profile_field_$key\">%profile_field_$key</span>";
-    };
-
+	profile_load_custom_fields($usr_helper);
+    	
+    $fldlist = mcae_prepare_profile_data($usr_helper);
+	
     // Additional values for email
-    $fldlist[] = "<span title=\"%email_username\">%email_username</span>";
-    $fldlist[] = "<span title=\"%email_domain\">%email_domain</span>";
-    $fldlist[] = "<span title=\"%email_rootdomain\">%email_rootdomain</span>";
+    list($email_username,$email_domain) = explode("@", $fldlist['email']);
 
-    sort($fldlist);
-    $help_text = implode(', ', $fldlist);
+    // Email root domain
+    $email_domain_array = explode('.',$email_domain);
+    if(count($email_domain_array) > 2) {
+        $email_rootdomain = $email_domain_array[count($email_domain_array)-2].'.'.$email_domain_array[count($email_domain_array)-1];
+    } else {
+        $email_rootdomain = $email_domain;
+    }
+    $fldlist['email'] = array('full' => $fldlist['email'], 'username' => $email_username, 'domain' => $email_domain, 'rootdomain' => $email_rootdomain);
+	
+    //print_r($fldlist);
+    $help_array = array();
+    mcae_print_profile_data($fldlist, '', $help_array);
+
+    //print_r($usr_helper);
+    //print_r($help_array);
+	
+    $help_text = implode(', ', $help_array);
 
     $settings->add(new admin_setting_heading('auth_mcae_profile_help', get_string('auth_profile_help', 'auth_mcae'), $help_text));
 
