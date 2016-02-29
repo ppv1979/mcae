@@ -21,10 +21,22 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
+define('CLI_SCRIPT', true);
 
-$plugin->version   = 2016022900;
-$plugin->component = 'auth_mcae';
-$plugin->maturity = MATURITY_STABLE;
-$plugin->requires = 2015102300;
-$plugin->release = '3.1';
+require(__DIR__.'/../../../config.php');
+require_once("$CFG->libdir/clilib.php");
+
+if (!is_enabled_auth('mcae')) {
+    cli_error('auth_mcae plugin is disabled, synchronisation stopped', 2);
+}
+
+$username = cli_input('Username to update');
+
+if ($username) {
+    $auth = get_auth_plugin('mcae');
+    if ($user = $DB->get_record('user', array('username' => $username))) {
+        echo "Update user $username complete\n";
+        $auth->user_authenticated_hook($user, $username, '');
+    }
+}
+exit("\nFinish\n");
